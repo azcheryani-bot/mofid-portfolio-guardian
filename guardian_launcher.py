@@ -7,6 +7,7 @@
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -45,6 +46,14 @@ def get_gdrive_access_token():
             if resp.status == 200:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body.get("access_token"), folder_id
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            detail = ""
+        print(
+            f"[!] خطا در دریافت Access Token از گوگل درایو: HTTP {e.code} {e.reason} — {detail}"
+        )
     except Exception as e:
         print(f"[!] خطا در دریافت Access Token از گوگل درایو: {e}")
     return None, folder_id
