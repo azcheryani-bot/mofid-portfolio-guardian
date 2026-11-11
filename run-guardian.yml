@@ -1,0 +1,62 @@
+name: Mofid Portfolio Guardian (Shield 1)
+
+on:
+  schedule:
+    # اجرا در روزهای شنبه، یکشنبه، دوشنبه، سه‌شنبه و چهارشنبه ساعت 05:10 UTC (معادل 08:40 صبح تهران)
+    - cron: '10 5 * * 6,0,1,2,3'
+  workflow_dispatch:
+    inputs:
+      force_run_on_weekend:
+        description: 'اجرای تست تشخیصی حتی در روز تعطیل (1 = بله)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-guardian-shield1
+  cancel-in-progress: false
+
+jobs:
+  run-guardian:
+    runs-on: ubuntu-latest
+    timeout-minutes: 250
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests urllib3 certifi
+
+      - name: Run Cloud Portfolio Guardian Launcher (08:40 to 12:30 IRST)
+        env:
+          TZ: Asia/Tehran
+          PYTHONUNBUFFERED: "1"
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          FORCE_RUN_ON_WEEKEND: ${{ github.event.inputs.force_run_on_weekend || '0' }}
+        run: |
+          python guardian_launcher.py
+
+      - name: Upload Guardian Logs & Signals as Artifacts (90 Days Retention)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-shield1-logs-${{ github.run_number }}
+          path: |
+            guardian_shield1_log.txt
+            guardian_shield1_signals.csv
+            guardian_shield1_state.json
+          if-no-files-found: ignore
+          retention-days: 90
